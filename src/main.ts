@@ -12,6 +12,7 @@ import { View } from './view';
 const TITLE_HOLD_MS = 2000;
 // Top-of-screen sky color, used to tint Safari's status bar area while flying.
 const SKY_TINT = '#2c5ec4';
+const GROUND_TINT = '#1c2a20'; // matches the bottom of #edge-fade
 const HINT_SECONDS = 20;
 const THROTTLE_RATE = 0.4;
 
@@ -248,7 +249,10 @@ map.on('load', async () => {
   running = true;
   titleEl.classList.add('hidden');
   $('theme-color').setAttribute('content', SKY_TINT);
-  document.body.style.background = SKY_TINT;
+  // Safari tints its status bar from the background color; the gradient fills any
+  // strip below the map behind the toolbar with a terrain tone instead of sky.
+  document.body.style.backgroundColor = SKY_TINT;
+  document.body.style.backgroundImage = `linear-gradient(${SKY_TINT} 50%, ${GROUND_TINT} 50%)`;
 });
 
 // --- Loop --------------------------------------------------------------------

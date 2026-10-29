@@ -31,10 +31,10 @@ body {
   inset: 0;
 }
 
-/* Full-bleed layers use the *large* viewport height. The game layers are plain
-   (absolute) page content so mobile Safari draws them behind its glass toolbar;
-   iOS 26 Safari instead tints its bars from the background of full-screen
-   fixed elements, so the fixed overlays below are fully hidden when idle. */
+/* Full-bleed layers are plain (absolute) page content at the *large* viewport
+   height, so mobile Safari draws them behind its glass toolbar. Fixed layers
+   would stop at the toolbar, and iOS 26 Safari tints its bars from full-screen
+   fixed backgrounds. */
 #map,
 #plane,
 #hud,
@@ -50,14 +50,34 @@ body {
 
 #map,
 #plane,
-#hud {
-  position: absolute;
-}
-
+#hud,
 #flash,
 #curtain,
 #title {
-  position: fixed;
+  position: absolute;
+}
+
+/* Soft edges on mobile: the top fades from the status-bar sky tint and the
+   bottom fades into the dark ground tone behind Safari's toolbar. */
+#edge-fade {
+  display: none;
+}
+
+@media (max-width: 900px), (hover: none), (pointer: coarse) {
+  #edge-fade {
+    position: absolute;
+    z-index: 5;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    height: 100lvh;
+    display: block;
+    pointer-events: none;
+    background:
+      linear-gradient(to bottom, #2c5ec4 0, rgba(44, 94, 196, 0) 110px),
+      linear-gradient(to top, #1c2a20 0, rgba(28, 42, 32, 0.85) 60px, rgba(28, 42, 32, 0) 220px);
+  }
 }
 
 /* Keep the Mapbox logo and attribution above Safari's toolbar. */
@@ -533,8 +553,7 @@ body {
     z-index: 10;
     left: max(10px, env(safe-area-inset-left));
     right: max(10px, env(safe-area-inset-right));
-    /* Leave the bottom strip for the Mapbox logo and attribution. */
-    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 28px);
+    bottom: max(8px, env(safe-area-inset-bottom));
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
@@ -554,6 +573,12 @@ body {
 
   #hud-dock.visible .dock-btn {
     pointer-events: auto;
+  }
+
+  /* Mapbox logo and attribution sit just above the dock. */
+  .mapboxgl-ctrl-bottom-left,
+  .mapboxgl-ctrl-bottom-right {
+    bottom: calc(100lvh - 100svh + max(8px, env(safe-area-inset-bottom)) + 100px);
   }
 }
 
