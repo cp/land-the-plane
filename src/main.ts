@@ -248,6 +248,7 @@ map.on('load', async () => {
   running = true;
   titleEl.classList.add('hidden');
   $('theme-color').setAttribute('content', SKY_TINT);
+  document.body.style.background = SKY_TINT;
 });
 
 // --- Loop --------------------------------------------------------------------

@@ -31,15 +31,16 @@ body {
   inset: 0;
 }
 
-/* Full-bleed layers use the *large* viewport height so mobile Safari draws the
-   game behind its floating toolbar instead of leaving a black bar there. */
+/* Full-bleed layers use the *large* viewport height. The game layers are plain
+   (absolute) page content so mobile Safari draws them behind its glass toolbar;
+   iOS 26 Safari instead tints its bars from the background of full-screen
+   fixed elements, so the fixed overlays below are fully hidden when idle. */
 #map,
 #plane,
 #hud,
 #flash,
 #curtain,
 #title {
-  position: fixed;
   top: 0;
   left: 0;
   width: 100%;
@@ -47,8 +48,22 @@ body {
   height: 100lvh;
 }
 
-#map {
-  background: #2c5ec4; /* matches the sky, so Safari tints the status bar to it */
+#map,
+#plane,
+#hud {
+  position: absolute;
+}
+
+#flash,
+#curtain,
+#title {
+  position: fixed;
+}
+
+/* Keep the Mapbox logo and attribution above Safari's toolbar. */
+.mapboxgl-ctrl-bottom-left,
+.mapboxgl-ctrl-bottom-right {
+  bottom: calc(100lvh - 100svh);
 }
 
 #plane,
@@ -69,7 +84,9 @@ body {
   background:
     radial-gradient(ellipse at 50% 55%, rgba(124, 243, 200, 0.09), transparent 60%),
     #000;
-  transition: opacity 1.2s ease 0.25s;
+  transition:
+    opacity 1.2s ease 0.25s,
+    visibility 0s linear 1.45s;
 }
 
 /* CRT-ish scanlines and a vignette over the whole title card. */
@@ -85,6 +102,7 @@ body {
 
 #title.hidden {
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
 }
 
@@ -801,12 +819,17 @@ body {
   z-index: 40;
   background: #000;
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.35s ease;
+  transition:
+    opacity 0.35s ease,
+    visibility 0s linear 0.35s;
 }
 
 #curtain.visible {
   opacity: 1;
+  visibility: visible;
+  transition: opacity 0.35s ease;
 }
 
 #flash {
@@ -814,9 +837,11 @@ body {
   pointer-events: none;
   background: radial-gradient(circle, rgba(255, 60, 60, 0.35), rgba(160, 0, 0, 0.8));
   opacity: 0;
+  visibility: hidden;
 }
 
 #flash.go {
+  visibility: visible;
   animation: flash 1.6s ease-out forwards;
 }
 
