@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>Land the Plane</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700;800&family=Russo+One&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="map"></div>
+    <canvas id="plane"></canvas>
+    <canvas id="hud"></canvas>
+    <div id="flash"></div>
+    <div id="curtain"></div>
+
+    <div id="paused" hidden>Paused <small>Press P or tap to resume</small></div>
+    <div id="stick" aria-hidden="true"><div class="stick-knob"></div></div>
+
+    <div id="result" class="result">
+      <div class="card">
+        <div id="result-grade"></div>
+        <h2 id="result-title"></h2>
+        <p id="result-reason"></p>
+        <div id="result-stats"></div>
+        <p class="hint">Press <kbd>R</kbd> or tap to fly again</p>
+      </div>
+    </div>
+
+    <div id="title">
+      <div class="streaks" aria-hidden="true">
+        <i style="--y: 14%; --d: 0.0s; --w: 180px"></i>
+        <i style="--y: 27%; --d: 1.3s; --w: 90px"></i>
+        <i style="--y: 38%; --d: 0.6s; --w: 240px"></i>
+        <i style="--y: 52%; --d: 2.1s; --w: 120px"></i>
+        <i style="--y: 63%; --d: 0.9s; --w: 200px"></i>
+        <i style="--y: 71%; --d: 1.7s; --w: 70px"></i>
+        <i style="--y: 84%; --d: 0.3s; --w: 160px"></i>
+        <i style="--y: 91%; --d: 2.4s; --w: 110px"></i>
+      </div>
+      <div class="logo">
+        <h1 aria-label="Land the plane">
+          <span class="word"><span style="--i: 0">L</span><span style="--i: 1">A</span><span style="--i: 2">N</span><span style="--i: 3">D</span></span>
+          <span class="word"><span style="--i: 4">T</span><span style="--i: 5">H</span><span style="--i: 6">E</span></span>
+          <span class="word"><span style="--i: 7">P</span><span style="--i: 8">L</span><span style="--i: 9">A</span><span style="--i: 10">N</span><span style="--i: 11">E</span></span>
+        </h1>
+        <div class="logo-rule"></div>
+      </div>
+      <p id="title-sub" class="visible loading">Loading scenery</p>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
