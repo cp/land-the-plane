@@ -30,6 +30,14 @@ if (!token) {
 }
 mapboxgl.accessToken = token;
 
+// iOS Safari can't allocate a full 3x WebGL drawing buffer with terrain on and
+// silently renders the map into a clipped corner. Mapbox v3 has no pixel ratio
+// option (it reads window.devicePixelRatio), so cap that at 2 for the page;
+// the three.js overlay is already capped at 2 too.
+if (window.devicePixelRatio > 2) {
+  Object.defineProperty(window, 'devicePixelRatio', { configurable: true, get: () => 2 });
+}
+
 // The curated list only has KPDX for now; pick randomly once there are more.
 const airport = AIRPORTS[Math.floor(Math.random() * AIRPORTS.length)];
 
@@ -43,6 +51,12 @@ const map = new mapboxgl.Map({
   interactive: false,
   fadeDuration: 0,
 });
+
+// Safari's collapsing toolbars change the visible viewport without always
+// firing a window resize, so keep the map's canvas in sync explicitly.
+const resizeMap = () => map.resize();
+window.visualViewport?.addEventListener('resize', resizeMap);
+window.addEventListener('orientationchange', () => setTimeout(resizeMap, 250));
 
 const game = new Game(airport, (x, y) => {
   const [lng, lat] = game.frame.toLngLat(x, y);
