@@ -14,6 +14,8 @@ const TITLE_HOLD_MS = 2000;
 const SKY_TINT = '#2c5ec4';
 const HINT_SECONDS = 20;
 const THROTTLE_RATE = 0.4;
+// Slightly taller-than-life terrain so hills read as 3D from altitude.
+const TERRAIN_EXAGGERATION = 1.25;
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const titleEl = $('title');
@@ -62,7 +64,7 @@ window.addEventListener('orientationchange', () => setTimeout(resizeMap, 250));
 
 const game = new Game(airport, (x, y) => {
   const [lng, lat] = game.frame.toLngLat(x, y);
-  return map.queryTerrainElevation([lng, lat], { exaggerated: false }) ?? null;
+  return map.queryTerrainElevation([lng, lat], { exaggerated: true }) ?? null;
 });
 const view = new View(map, $('plane'));
 
@@ -158,7 +160,7 @@ map.on('style.load', () => {
     tileSize: 512,
     maxzoom: 14,
   });
-  map.setTerrain({ source: 'mapbox-dem', exaggeration: 1 });
+  map.setTerrain({ source: 'mapbox-dem', exaggeration: TERRAIN_EXAGGERATION });
   map.setFog({
     range: [1, 14],
     color: 'rgb(200, 216, 235)',
@@ -179,6 +181,26 @@ map.on('style.load', () => {
       'line-width': 2,
       'line-opacity': 0.55,
       'line-dasharray': [3, 3],
+    },
+  });
+
+  // Real building footprints from Mapbox Streets, extruded to their heights.
+  map.addSource('streets', { type: 'vector', url: 'mapbox://mapbox.mapbox-streets-v8' });
+  map.addLayer({
+    id: 'buildings-3d',
+    type: 'fill-extrusion',
+    source: 'streets',
+    'source-layer': 'building',
+    minzoom: 13,
+    filter: ['==', ['get', 'extrude'], 'true'],
+    paint: {
+      // Warm concrete, a touch lighter for taller buildings.
+      'fill-extrusion-color': ['interpolate', ['linear'], ['get', 'height'], 0, '#cfc8ba', 60, '#e4e0d8', 150, '#eef0f2'],
+      'fill-extrusion-height': ['get', 'height'],
+      'fill-extrusion-base': ['get', 'min_height'],
+      'fill-extrusion-opacity': 0.92,
+      'fill-extrusion-vertical-gradient': true,
+      'fill-extrusion-ambient-occlusion-intensity': 0.35,
     },
   });
 });
