@@ -56,8 +56,9 @@ export class View {
   }
 
   private resize(): void {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    const canvas = this.renderer.domElement;
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();

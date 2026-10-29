@@ -26,21 +26,33 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-#map,
-#plane,
-#hud,
-#flash,
-#curtain,
-#title,
 .result {
   position: fixed;
   inset: 0;
 }
 
+/* Full-bleed layers use the *large* viewport height so mobile Safari draws the
+   game behind its floating toolbar instead of leaving a black bar there. */
+#map,
 #plane,
-#hud {
+#hud,
+#flash,
+#curtain,
+#title {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
+  height: 100lvh;
+}
+
+#map {
+  background: #2c5ec4; /* matches the sky, so Safari tints the status bar to it */
+}
+
+#plane,
+#hud {
   pointer-events: none;
 }
 
@@ -53,6 +65,7 @@ body {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  padding-bottom: calc(100lvh - 100svh);
   background:
     radial-gradient(ellipse at 50% 55%, rgba(124, 243, 200, 0.09), transparent 60%),
     #000;
@@ -199,6 +212,8 @@ body {
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.3em;
+  /* Letter-spacing adds space after the last glyph too; indent to re-center. */
+  text-indent: 0.3em;
   text-transform: uppercase;
   text-align: center;
   color: var(--accent);
@@ -232,6 +247,20 @@ body {
 #title-sub.error::before,
 #title-sub.error::after {
   content: none;
+}
+
+@media (max-width: 600px) {
+  #title-sub {
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+    text-indent: 0.16em;
+    white-space: nowrap;
+  }
+
+  #title-sub::before,
+  #title-sub::after {
+    content: none;
+  }
 }
 
 @keyframes blink {

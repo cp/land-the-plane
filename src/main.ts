@@ -10,6 +10,8 @@ import { pressable, TouchStick } from './touch';
 import { View } from './view';
 
 const TITLE_HOLD_MS = 2000;
+// Top-of-screen sky color, used to tint Safari's status bar area while flying.
+const SKY_TINT = '#2c5ec4';
 const HINT_SECONDS = 20;
 const THROTTLE_RATE = 0.4;
 
@@ -245,6 +247,7 @@ map.on('load', async () => {
   await sleep(TITLE_HOLD_MS);
   running = true;
   titleEl.classList.add('hidden');
+  $('theme-color').setAttribute('content', SKY_TINT);
 });
 
 // --- Loop --------------------------------------------------------------------
@@ -305,7 +308,7 @@ function drawHud(time: number): void {
       glideslope: approach.glideslope,
       localizer: approach.localizer,
       targetCam: { x: cam.x, y: cam.y, z: cam.z },
-      focal: window.innerHeight / 2 / Math.tan((view.camera.fov * DEG) / 2),
+      focal: $('plane').clientHeight / 2 / Math.tan((view.camera.fov * DEG) / 2),
       showHints: flyingTime < HINT_SECONDS,
     },
     time,

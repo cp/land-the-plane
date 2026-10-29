@@ -163,8 +163,8 @@ export class Hud {
 
   private resize(): void {
     const dpr = Math.min(window.devicePixelRatio, 2);
-    this.w = window.innerWidth;
-    this.h = window.innerHeight;
+    this.w = this.canvas.clientWidth;
+    this.h = this.canvas.clientHeight;
     this.canvas.width = this.w * dpr;
     this.canvas.height = this.h * dpr;
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
