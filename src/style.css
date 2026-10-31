@@ -345,6 +345,15 @@ body {
   pointer-events: auto;
 }
 
+/* Feedback while long-pressing to switch tilt / drag on phones. */
+#hud-bar.visible.pressed {
+  transform: scale(0.985);
+  border-color: rgba(124, 243, 200, 0.5);
+  transition:
+    transform 0.35s ease,
+    border-color 0.35s ease;
+}
+
 .hud-row {
   display: flex;
   align-items: center;
@@ -582,6 +591,10 @@ body {
 
   #hud-dock.visible .dock-btn {
     pointer-events: auto;
+  }
+
+  #toast {
+    top: calc(max(8px, env(safe-area-inset-top)) + 120px);
   }
 
   /* Mapbox logo and attribution sit just above the dock. */
@@ -913,6 +926,82 @@ body {
     opacity 0.2s ease,
     transform 0.2s ease;
   pointer-events: none;
+}
+
+/* First-flight prompt on phones: the tap unlocks motion sensors and sets neutral. */
+#tilt-prompt {
+  position: fixed;
+  z-index: 35;
+  top: 50%;
+  left: 50%;
+  width: min(320px, calc(100% - 40px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 22px 20px;
+  border-radius: 18px;
+  border: 1px solid rgba(124, 243, 200, 0.35);
+  background: rgba(8, 12, 20, 0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #fff;
+  font-family: var(--display);
+  text-align: center;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  animation: prompt-pulse 2s ease-in-out infinite;
+}
+
+#tilt-prompt[hidden] {
+  display: none;
+}
+
+#tilt-prompt strong {
+  font-family: 'Russo One', var(--display);
+  font-weight: 400;
+  font-size: 1.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  transform: skewX(-9deg);
+}
+
+#tilt-prompt span {
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+#tilt-prompt small {
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.tilt-icon {
+  font-size: 2rem;
+  animation: tilt-wiggle 1.6s ease-in-out infinite;
+}
+
+@keyframes tilt-wiggle {
+  0%,
+  100% {
+    transform: rotate(-14deg);
+  }
+  50% {
+    transform: rotate(14deg);
+  }
+}
+
+@keyframes prompt-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(124, 243, 200, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(124, 243, 200, 0);
+  }
 }
 
 #toast.visible {

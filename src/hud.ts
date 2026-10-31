@@ -73,6 +73,8 @@ export class Hud {
   /** Every element that acts as a throttle / flaps button (top bar and mobile dock). */
   readonly throttleButtons: HTMLElement[];
   readonly flapsButtons: HTMLElement[];
+  /** The top bar itself (long-press toggles tilt / drag on touch devices). */
+  readonly barElement: HTMLElement;
   private readonly dock;
 
   constructor(
@@ -157,6 +159,7 @@ export class Hud {
     this.el = { wrap, speed, alt, vs, hdg, rwy, dist, gs, loc, thr, thrFill: thrBar.firstElementChild as HTMLElement, flaps, status };
     this.throttleButtons = [thr.root, powerBtn];
     this.flapsButtons = [flaps.root, flapsBtn];
+    this.barElement = wrap;
 
     this.resize();
     window.addEventListener('resize', () => this.resize());

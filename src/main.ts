@@ -6,7 +6,7 @@ import { DEG, FT, KT } from './geo';
 import { Game } from './game';
 import { Hud } from './hud';
 import { FLAP_DEGREES, verticalSpeed, type Controls } from './physics';
-import { pressable, TouchStick } from './touch';
+import { pressable, TiltControl, TouchStick } from './touch';
 import { View, type CameraMode } from './view';
 
 const TITLE_HOLD_MS = 2000;
@@ -100,7 +100,52 @@ window.addEventListener('keyup', (e) => keys.delete(e.code));
 window.addEventListener('blur', () => keys.clear());
 
 // Touch: drag anywhere to fly; tap THR/FLAPS to increase, hold to decrease.
-const stick = new TouchStick($('stick'), (t) => t instanceof Element && !!t.closest('#hud-bar, #hud-dock, .result.visible, #paused'));
+const stick = new TouchStick(
+  $('stick'),
+  (t) => t instanceof Element && !!t.closest('#hud-bar, #hud-dock, .result.visible, #paused, #tilt-prompt'),
+);
+
+// On phones, tilt is the default; long-press the top bar to switch to the drag stick.
+const tilt = new TiltControl();
+const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
+let controlMode: 'tilt' | 'drag' = isTouchDevice ? 'tilt' : 'drag';
+const tiltPrompt = $('tilt-prompt');
+stick.enabled = controlMode === 'drag';
+
+/** Waiting on the tap that unlocks motion sensors (and sets the neutral angle). */
+const awaitingTilt = () => controlMode === 'tilt' && !tiltPrompt.hidden;
+
+tiltPrompt.addEventListener('click', async () => {
+  const ok = await tilt.start();
+  tilt.calibrate();
+  tiltPrompt.hidden = true;
+  if (!ok) setControlMode('drag', 'Tilt unavailable · drag to fly');
+  else showToast('Tilt to fly · hold top bar for drag');
+});
+
+function setControlMode(mode: 'tilt' | 'drag', message?: string): void {
+  controlMode = mode;
+  stick.enabled = mode === 'drag';
+  if (mode === 'tilt') {
+    tilt.calibrate();
+    if (!tilt.enabled) {
+      tiltPrompt.hidden = false;
+      return;
+    }
+  }
+  showToast(message ?? (mode === 'tilt' ? 'Tilt to fly' : 'Drag to fly'));
+}
+
+if (isTouchDevice) {
+  // Toggle on release: iOS only grants sensor access from within a real tap.
+  pressable(hud.barElement, {
+    onTap: () => {},
+    onHoldStart: () => {},
+    onHoldEnd: () => {
+      if (running && !game.outcome) setControlMode(controlMode === 'tilt' ? 'drag' : 'tilt');
+    },
+  });
+}
 let throttleHeld = false;
 const canAct = () => running && !paused && !game.outcome;
 for (const el of hud.throttleButtons) {
@@ -138,8 +183,9 @@ function readControls(dt: number): void {
   // Yoke-style: push forward (up) for nose down, pull back (down) for nose up.
   const pitchKeys = (keys.has('ArrowDown') ? 1 : 0) - (keys.has('ArrowUp') ? 1 : 0);
   const rollKeys = (keys.has('ArrowRight') ? 1 : 0) - (keys.has('ArrowLeft') ? 1 : 0);
-  const pitchTarget = Math.max(-1, Math.min(1, pitchKeys + stick.pitch));
-  const rollTarget = Math.max(-1, Math.min(1, rollKeys + stick.roll));
+  const touch = controlMode === 'tilt' ? tilt : stick;
+  const pitchTarget = Math.max(-1, Math.min(1, pitchKeys + touch.pitch));
+  const rollTarget = Math.max(-1, Math.min(1, rollKeys + touch.roll));
   // Ease inputs in so a tap is a nudge rather than a jolt.
   controls.pitch = approach(controls.pitch, pitchTarget, 5);
   controls.roll = approach(controls.roll, rollTarget, 6);
@@ -158,12 +204,16 @@ const CAMERA_NAMES: Record<CameraMode, string> = {
 };
 let toastTimer: number | undefined;
 
-function setCameraMode(mode: CameraMode): void {
-  view.mode = mode;
-  toastEl.textContent = `Camera · ${CAMERA_NAMES[mode]}`;
+function showToast(text: string, ms = 1800): void {
+  toastEl.textContent = text;
   toastEl.classList.add('visible');
   clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => toastEl.classList.remove('visible'), 1800);
+  toastTimer = window.setTimeout(() => toastEl.classList.remove('visible'), ms);
+}
+
+function setCameraMode(mode: CameraMode): void {
+  view.mode = mode;
+  showToast(`Camera · ${CAMERA_NAMES[mode]}`);
 }
 
 /** WASD swings / raises the orbit camera, Q/E zooms. Only read in orbit mode. */
@@ -282,6 +332,7 @@ async function restart(): Promise<void> {
   flash.classList.remove('go'); // clear the crash tint while the screen is black
   await prepareFlight(6000);
   flyingTime = 0;
+  tilt.calibrate();
   running = true;
   curtain.classList.remove('visible');
   restarting = false;
@@ -296,6 +347,7 @@ map.on('load', async () => {
   await sleep(TITLE_HOLD_MS);
   running = true;
   titleEl.classList.add('hidden');
+  if (controlMode === 'tilt' && !tilt.enabled) tiltPrompt.hidden = false;
   $('theme-color').setAttribute('content', SKY_TINT);
   // Safari tints its status bar from the page background color.
   document.body.style.background = SKY_TINT;
@@ -323,7 +375,7 @@ function loop(now: number): void {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
 
-  if (running && !paused && game.state) {
+  if (running && !paused && !awaitingTilt() && game.state) {
     readControls(dt);
     game.update(controls, dt);
     flyingTime += dt;
