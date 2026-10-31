@@ -15,9 +15,25 @@ const WINGSPAN_COVERAGE = 11 / 0.6;
 // Mapbox caps pitch at 85°, so the camera must look down at least 5°.
 const MIN_LOOK_DOWN = 5 * DEG;
 
+const ORBIT_DEFAULT = { yaw: 0, elevation: 20 * DEG, distance: 30 };
+const ORBIT_LIMITS = { minElevation: MIN_LOOK_DOWN, maxElevation: 85 * DEG, minDistance: 12, maxDistance: 400 };
+const ORBIT_RATES = { yaw: 90 * DEG, elevation: 45 * DEG, zoom: 1.2 };
+// Pilot's eye relative to the CG: up and slightly forward.
+const COCKPIT_EYE = { up: 0.55, forward: 0.6 };
+
+export type CameraMode = 'chase' | 'orbit' | 'cockpit';
+
+/** Orbit-mode input, each -1..1: yaw (+ = swing right), elevation (+ = up), zoom (+ = closer). */
+export interface OrbitInput {
+  yaw: number;
+  elevation: number;
+  zoom: number;
+}
+
 /**
- * Chase camera shared by Mapbox and the three.js overlay. Both cameras get the
- * same pose every frame; the plane is drawn at the overlay's origin.
+ * Camera shared by Mapbox and the three.js overlay. Both cameras get the same
+ * pose every frame; the plane is drawn at the overlay's origin. Modes: chase
+ * (behind and above), orbit (player-controlled around the plane), and cockpit.
  */
 export class View {
   readonly camera: THREE.PerspectiveCamera;
@@ -28,6 +44,8 @@ export class View {
   private camGamma = 0;
   /** Chase distance multiplier: 1 on landscape screens, larger on portrait. */
   private zoom = 1;
+  mode: CameraMode = 'chase';
+  private orbit = { ...ORBIT_DEFAULT };
 
   constructor(
     private readonly map: mapboxgl.Map,
@@ -66,6 +84,10 @@ export class View {
     this.zoom = Math.max(1, WINGSPAN_COVERAGE / (2 * halfTan) / CHASE_DISTANCE);
   }
 
+  resetOrbit(): void {
+    this.orbit = { ...ORBIT_DEFAULT };
+  }
+
   /** Snap the chase camera behind the plane (used on spawn). */
   snap(s: PlaneState): void {
     this.camHeading = s.heading;
@@ -78,6 +100,7 @@ export class View {
     groundAt: (x: number, y: number) => number,
     groundUnderPlane: number,
     input: { pitch: number; roll: number; flapDeg: number },
+    orbitInput: OrbitInput,
     dt: number,
   ): void {
     // Smoothly trail the plane's heading and flight path so turns are visible.
@@ -85,22 +108,22 @@ export class View {
     this.camHeading = wrapPi(this.camHeading + wrapPi(s.heading - this.camHeading) * k);
     this.camGamma += (Math.max(-12 * DEG, Math.min(12 * DEG, s.gamma)) - this.camGamma) * k;
 
-    const fx = Math.sin(this.camHeading);
-    const fy = Math.cos(this.camHeading);
-    const dist = CHASE_DISTANCE * this.zoom;
-    const back = dist * Math.cos(this.camGamma);
-    let ox = -fx * back;
-    let oy = -fy * back;
-    let oz = CHASE_HEIGHT * this.zoom - dist * Math.sin(this.camGamma);
+    const pose =
+      this.mode === 'orbit' ? this.orbitPose(orbitInput, dt) : this.mode === 'cockpit' ? this.cockpitPose(s) : this.chasePose();
 
     // Never put the camera underground (Mapbox would bump it up and desync us).
-    const camGround = groundAt(s.x + ox, s.y + oy);
-    oz = Math.max(oz, camGround + 3 - s.z);
-
-    const tx = fx * LOOK_AHEAD * this.zoom - ox;
-    const ty = fy * LOOK_AHEAD * this.zoom - oy;
-    const lookDown = Math.max(MIN_LOOK_DOWN, Math.atan2(oz, Math.hypot(tx, ty)));
-    const bearing = Math.atan2(tx, ty);
+    if (this.mode !== 'cockpit') {
+      const camGround = groundAt(s.x + pose.ox, s.y + pose.oy);
+      const minOz = camGround + 3 - s.z;
+      if (pose.oz < minOz) {
+        pose.oz = minOz;
+        // Re-aim at the plane from the raised position.
+        pose.lookDown = Math.atan2(pose.oz - pose.tz, Math.hypot(pose.tx - pose.ox, pose.ty - pose.oy));
+      }
+    }
+    const { ox, oy, oz } = pose;
+    const lookDown = Math.max(MIN_LOOK_DOWN, pose.lookDown);
+    const bearing = pose.bearing;
 
     const [lng, lat] = frame.toLngLat(s.x + ox, s.y + oy);
     const opts = this.map.getFreeCameraOptions();
@@ -113,12 +136,15 @@ export class View {
     this.camera.rotation.set(-lookDown, -bearing, 0);
     this.camera.updateMatrixWorld();
 
+    // In the cockpit you're inside the plane, so don't draw it.
+    this.plane.root.visible = this.mode !== 'cockpit';
+
     this.plane.root.rotation.set(s.gamma + s.alpha, -s.heading, -s.bank);
     this.plane.update({ ...input, propAngle: s.propAngle, throttle: s.throttle });
 
     const agl = s.z - GEAR_HEIGHT - groundUnderPlane;
     const shadow = this.plane.shadow;
-    shadow.visible = agl < 80;
+    shadow.visible = agl < 80 && this.mode !== 'cockpit';
     shadow.position.set(0, -(s.z - groundUnderPlane) + 0.05, 0);
     shadow.rotation.set(-Math.PI / 2, 0, -s.heading);
     (shadow.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 1 - agl / 80);
@@ -128,8 +154,70 @@ export class View {
     this.renderer.render(this.scene, this.camera);
   }
 
+  /** Behind and above, looking slightly ahead of the plane. */
+  private chasePose(): Pose {
+    const fx = Math.sin(this.camHeading);
+    const fy = Math.cos(this.camHeading);
+    const dist = CHASE_DISTANCE * this.zoom;
+    const back = dist * Math.cos(this.camGamma);
+    const ox = -fx * back;
+    const oy = -fy * back;
+    const oz = CHASE_HEIGHT * this.zoom - dist * Math.sin(this.camGamma);
+    const tx = fx * LOOK_AHEAD * this.zoom;
+    const ty = fy * LOOK_AHEAD * this.zoom;
+    return aim(ox, oy, oz, tx, ty, 0);
+  }
+
+  /** Player-controlled orbit around the plane, relative to its heading. */
+  private orbitPose(input: OrbitInput, dt: number): Pose {
+    const o = this.orbit;
+    o.yaw = wrapPi(o.yaw + input.yaw * ORBIT_RATES.yaw * dt);
+    o.elevation = Math.min(
+      ORBIT_LIMITS.maxElevation,
+      Math.max(ORBIT_LIMITS.minElevation, o.elevation + input.elevation * ORBIT_RATES.elevation * dt),
+    );
+    o.distance = Math.min(
+      ORBIT_LIMITS.maxDistance,
+      Math.max(ORBIT_LIMITS.minDistance, o.distance * Math.exp(-input.zoom * ORBIT_RATES.zoom * dt)),
+    );
+
+    // yaw 0 = directly behind; positive swings the camera clockwise around the plane.
+    const around = this.camHeading + Math.PI + o.yaw;
+    const dist = o.distance * this.zoom;
+    const horizontal = dist * Math.cos(o.elevation);
+    return aim(Math.sin(around) * horizontal, Math.cos(around) * horizontal, dist * Math.sin(o.elevation), 0, 0, 0);
+  }
+
+  /** Pilot's-eye view. Mapbox can't roll the camera, so the horizon stays level. */
+  private cockpitPose(s: PlaneState): Pose {
+    const fx = Math.sin(s.heading);
+    const fy = Math.cos(s.heading);
+    const ox = fx * COCKPIT_EYE.forward;
+    const oy = fy * COCKPIT_EYE.forward;
+    const pitch = s.gamma + s.alpha;
+    return { ox, oy, oz: COCKPIT_EYE.up, tx: ox + fx, ty: oy + fy, tz: COCKPIT_EYE.up, lookDown: -pitch, bearing: s.heading };
+  }
+
   /** Camera-space position of a world point relative to the plane (x right, y up, -z forward). */
   toCameraSpace(dx: number, dy: number, dz: number): THREE.Vector3 {
     return new THREE.Vector3(dx, dz, -dy).applyMatrix4(this.camera.matrixWorldInverse);
   }
+}
+
+/** Camera position and look target, both relative to the plane (east, north, up). */
+interface Pose {
+  ox: number;
+  oy: number;
+  oz: number;
+  tx: number;
+  ty: number;
+  tz: number;
+  lookDown: number;
+  bearing: number;
+}
+
+function aim(ox: number, oy: number, oz: number, tx: number, ty: number, tz: number): Pose {
+  const dx = tx - ox;
+  const dy = ty - oy;
+  return { ox, oy, oz, tx, ty, tz, lookDown: Math.atan2(oz - tz, Math.hypot(dx, dy)), bearing: Math.atan2(dx, dy) };
 }

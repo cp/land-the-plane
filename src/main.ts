@@ -7,7 +7,7 @@ import { Game } from './game';
 import { Hud } from './hud';
 import { FLAP_DEGREES, verticalSpeed, type Controls } from './physics';
 import { pressable, TouchStick } from './touch';
-import { View } from './view';
+import { View, type CameraMode } from './view';
 
 const TITLE_HOLD_MS = 2000;
 // Top-of-screen sky color, used to tint Safari's status bar area while flying.
@@ -24,6 +24,7 @@ const curtain = $('curtain');
 const flash = $('flash');
 const resultEl = $('result');
 const pausedEl = $('paused');
+const toastEl = $('toast');
 
 const token = import.meta.env.VITE_MAPBOX_TOKEN;
 if (!token) {
@@ -85,6 +86,9 @@ window.addEventListener('keydown', (e) => {
   keys.add(e.code);
   if (e.repeat) return;
   if (e.code === 'KeyR' && running) restart();
+  // Camera keys keep working after a crash or landing, to look around.
+  if (running && e.code in CAMERA_KEYS) setCameraMode(CAMERA_KEYS[e.code]);
+  if (running && e.code === 'Digit0' && view.mode === 'orbit') view.resetOrbit();
   if (!running || game.outcome) return;
   if (e.code === 'KeyP') togglePause();
   if (e.code === 'KeyF' && !paused) {
@@ -144,6 +148,29 @@ function readControls(dt: number): void {
   const s = game.state;
   if (keys.has('KeyC')) s.throttle = Math.min(1, s.throttle + THROTTLE_RATE * dt);
   if (keys.has('KeyV') || throttleHeld) s.throttle = Math.max(0, s.throttle - THROTTLE_RATE * dt);
+}
+
+const CAMERA_KEYS: Record<string, CameraMode> = { Digit1: 'chase', Digit2: 'orbit', Digit3: 'cockpit' };
+const CAMERA_NAMES: Record<CameraMode, string> = {
+  chase: 'Chase',
+  orbit: 'Orbit · WASD move · Q/E zoom · 0 reset',
+  cockpit: 'Cockpit',
+};
+let toastTimer: number | undefined;
+
+function setCameraMode(mode: CameraMode): void {
+  view.mode = mode;
+  toastEl.textContent = `Camera · ${CAMERA_NAMES[mode]}`;
+  toastEl.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => toastEl.classList.remove('visible'), 1800);
+}
+
+/** WASD swings / raises the orbit camera, Q/E zooms. Only read in orbit mode. */
+function orbitInput() {
+  if (view.mode !== 'orbit') return { yaw: 0, elevation: 0, zoom: 0 };
+  const axis = (pos: string, neg: string) => (keys.has(pos) ? 1 : 0) - (keys.has(neg) ? 1 : 0);
+  return { yaw: axis('KeyD', 'KeyA'), elevation: axis('KeyW', 'KeyS'), zoom: axis('KeyE', 'KeyQ') };
 }
 
 function togglePause(): void {
@@ -287,6 +314,7 @@ function renderFrame(dt: number): void {
     (x, y) => game.groundAt(x, y),
     game.groundAt(s.x, s.y),
     { pitch: controls.pitch, roll: controls.roll, flapDeg: game.flapDegrees() },
+    orbitInput(),
     dt,
   );
 }

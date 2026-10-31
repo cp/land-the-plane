@@ -124,7 +124,8 @@ export class Hud {
       '<div class="hud-hints-inner">' +
       '<span><kbd>↑</kbd><kbd>↓</kbd> pitch</span><span><kbd>←</kbd><kbd>→</kbd> roll</span>' +
       '<span><kbd>C</kbd><kbd>V</kbd> throttle</span><span><kbd>F</kbd> flaps</span>' +
-      '<span><kbd>B</kbd> brakes</span><span><kbd>P</kbd> pause</span><span><kbd>R</kbd> restart</span>' +
+      '<span><kbd>B</kbd> brakes</span><span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> camera</span>' +
+      '<span><kbd>P</kbd> pause</span><span><kbd>R</kbd> restart</span>' +
       '</div>';
     wrap.appendChild(this.hints);
     container.appendChild(wrap);
